@@ -7,6 +7,7 @@ a temporary directory. Pass a reference checkout at the documented SHA.
 import argparse
 import csv
 import hashlib
+import os
 import pathlib
 import re
 import struct
@@ -114,6 +115,8 @@ def main():
     ap.add_argument('reference', type=pathlib.Path)
     ap.add_argument('data', type=pathlib.Path)
     ap.add_argument('renderer', type=pathlib.Path)
+    ap.add_argument('--cc', default=os.environ.get('CC', 'gcc' if os.name == 'nt' else 'cc'),
+                    help='C11 compiler executable (GCC/Clang); defaults to CC or platform compiler')
     args = ap.parse_args()
     actual = subprocess.check_output(
         ['git', '-C', str(args.reference), 'rev-parse', 'HEAD'], text=True).strip()
@@ -139,9 +142,10 @@ def main():
         tmp = pathlib.Path(tmp)
         (tmp / 'reference.c').write_text(
             PREFIX + '\n'.join(extract(source, f) for f in functions) + SUFFIX)
-        subprocess.run(['cc', '-std=c11', '-O0', '-I', str(repo / 'vendor'),
+        reference_exe = tmp / ('reference.exe' if os.name == 'nt' else 'reference')
+        subprocess.run([args.cc, '-std=c11', '-O0', '-I', str(repo / 'vendor'),
                         str(tmp / 'reference.c'), str(repo / 'vendor/opl3.c'),
-                        '-o', str(tmp / 'reference')], check=True)
+                        '-o', str(reference_exe)], check=True)
         cases = [('music', 0, 12), ('adlib', 0, 2), ('adlib', 24, 2),
                  ('adlib', 26, 2), ('pc', 0, 2), ('pc', 24, 2),
                  ('pcm', 0, 2), ('pcm', 1, 2), ('pcm', 2, 4)]
@@ -154,7 +158,7 @@ def main():
                 slot = index + {'music': 261, 'adlib': 87, 'pc': 0}[kind]
                 raw = d[offsets[slot]:offsets[slot+1]]
             (tmp / 'chunk').write_bytes(raw)
-            subprocess.run([str(tmp / 'reference'), kind, str(tmp / 'chunk'),
+            subprocess.run([str(reference_exe), kind, str(tmp / 'chunk'),
                             str(tmp / 'ref.raw'), str(tmp / 'ref.csv'),
                             str(seconds)], check=True)
             subprocess.run([str(args.renderer.resolve()), str(args.data), kind,
@@ -186,7 +190,7 @@ def main():
             if len(raw) < 2 or struct.unpack_from('<H', raw)[0] != 0:
                 continue
             (tmp / 'chunk').write_bytes(raw)
-            subprocess.run([str(tmp / 'reference'), 'music', str(tmp / 'chunk'),
+            subprocess.run([str(reference_exe), 'music', str(tmp / 'chunk'),
                             str(tmp / 'ref.raw'), str(tmp / 'ref.csv'), '1'],
                            check=True)
             if any((tmp / 'ref.raw').read_bytes()):

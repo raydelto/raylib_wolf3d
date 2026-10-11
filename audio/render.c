@@ -7,6 +7,44 @@
 #include <string.h>
 #include <time.h>
 #include <limits.h>
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+typedef LARGE_INTEGER wall_clock;
+static wall_clock wall_start(void) {
+    wall_clock start;
+    if (!QueryPerformanceCounter(&start)) { fprintf(stderr,"Cannot read wall clock\n"); exit(1); }
+    return start;
+}
+static int wall_wait(wall_clock start, uint64_t frames, unsigned rate) {
+    LARGE_INTEGER frequency, now;
+    if (!QueryPerformanceFrequency(&frequency)) return 1;
+    for (;;) {
+        double remaining;
+        if (!QueryPerformanceCounter(&now)) return 1;
+        remaining=(double)frames/rate-(double)(now.QuadPart-start.QuadPart)/frequency.QuadPart;
+        if (remaining<=0) return 0;
+        /* Recheck the absolute deadline after every sleep; no accumulated drift. */
+        Sleep(remaining>=0.002 ? (DWORD)(remaining*1000) : 1);
+    }
+}
+#else
+typedef struct timespec wall_clock;
+static wall_clock wall_start(void) {
+    wall_clock start;
+    if (clock_gettime(CLOCK_MONOTONIC,&start)) { fprintf(stderr,"Cannot read wall clock\n"); exit(1); }
+    return start;
+}
+static int wall_wait(wall_clock start, uint64_t frames, unsigned rate) {
+    uint64_t ns=frames*1000000000/rate;
+    int e;
+    start.tv_sec+=(time_t)(ns/1000000000);
+    start.tv_nsec+=(long)(ns%1000000000);
+    if (start.tv_nsec>=1000000000) { ++start.tv_sec; start.tv_nsec-=1000000000; }
+    do { e=clock_nanosleep(CLOCK_MONOTONIC,TIMER_ABSTIME,&start,NULL); } while(e==EINTR);
+    return e;
+}
+#endif
 
 typedef struct { uint8_t *p; size_t n; } blob;
 static unsigned u16(const uint8_t *p) { return p[0] | (unsigned)p[1]<<8; }
@@ -65,7 +103,7 @@ static unsigned number(const char *p) {
 int main(int argc, char **argv) {
     unsigned index,seconds,rate=44100,sounds; uint64_t frames,done=0;
     blob h={0},d={0},v={0},data={0}; sd_audio *s; FILE *wav,*log=NULL;
-    int realtime=0,allocated=0; struct timespec start;
+    int realtime=0,allocated=0; wall_clock start;
     if (argc<6) {
         fprintf(stderr,"Usage: %s DATA_DIR music|adlib|pc|pcm INDEX SECONDS OUT.wav [--rate HZ] [--trace OUT.csv] [--realtime]\n",argv[0]);
         return 1;
@@ -111,21 +149,14 @@ int main(int argc, char **argv) {
     fwrite("RIFF",1,4,wav); put32(wav,(uint32_t)(36+frames*4)); fwrite("WAVEfmt ",1,8,wav);
     put32(wav,16); put16(wav,1); put16(wav,2); put32(wav,rate); put32(wav,rate*4);
     put16(wav,4); put16(wav,16); fwrite("data",1,4,wav); put32(wav,(uint32_t)(frames*4));
-    if (realtime && clock_gettime(CLOCK_MONOTONIC,&start)) fail("Cannot read wall clock");
+    if (realtime) start=wall_start();
     while (done<frames) {
         int16_t buffer[512*2]; size_t n=frames-done>512 ? 512 : (size_t)(frames-done);
         sd_audio_mix(s,buffer,n);
         for (size_t i=0;i<n*2;++i) put16(wav,(uint16_t)buffer[i]);
         done+=n;
         if (realtime) {
-            uint64_t ns=done*1000000000/rate;
-            struct timespec deadline=start;
-            deadline.tv_sec+=(time_t)(ns/1000000000);
-            deadline.tv_nsec+=(long)(ns%1000000000);
-            if (deadline.tv_nsec>=1000000000) { ++deadline.tv_sec; deadline.tv_nsec-=1000000000; }
-            int e;
-            do { e=clock_nanosleep(CLOCK_MONOTONIC,TIMER_ABSTIME,&deadline,NULL); } while(e==EINTR);
-            if (e) fail("Wall clock pacing failed");
+            if (wall_wait(start,done,rate)) fail("Wall clock pacing failed");
         }
     }
     if (ferror(wav) || fclose(wav)) fail("Writing WAV failed");

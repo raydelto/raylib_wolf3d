@@ -29,7 +29,9 @@ build-audio/wolf_audio_render "$HOME/wolf3d-data/shareware" pc 24 2 pc.wav --rea
 
 The foundation can use `add_subdirectory(audio)` and link `wolf_audio` when it
 lands. Core code is portable C; this headless harness's optional wall-clock
-pacing uses POSIX `clock_nanosleep` on Ubuntu. `--rate HZ` accepts 700..384000 Hz
+pacing uses POSIX `clock_nanosleep` on Ubuntu and `QueryPerformanceCounter`
+with `Sleep` on Windows, rechecking absolute monotonic deadlines after each
+sleep. `--rate HZ` accepts 700..384000 Hz
 (560 minimum with Spear). `--trace OUT.csv` writes frame/register/value events.
 WAV output is explicitly little-endian PCM, independent of host byte order.
 Without `--realtime`, rendering uses only the sample clock and runs offline;
@@ -43,6 +45,28 @@ cmake -S audio -B build-audio-spear -DSD_AUDIO_SPEAR=ON -DCMAKE_BUILD_TYPE=Relea
 cmake --build build-audio-spear -j2
 ctest --test-dir build-audio-spear --output-on-failure
 ```
+
+### Windows 11 / PowerShell
+
+Install MinGW-w64 GCC, CMake and Python 3 with their executable directories on
+PATH. The standalone build needs no raylib or audio device:
+
+```powershell
+cmake -S audio -B build-audio -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Debug
+cmake --build build-audio -j2
+ctest --test-dir build-audio --output-on-failure
+python audio/tests/fetch_shareware.py
+python audio/tests/fetch_shareware.py --check-only
+.\build-audio\wolf_audio_render.exe "$HOME/wolf3d-data/shareware" music 0 12 corner.wav --realtime
+```
+
+CTest includes synthetic music/AdLib/PC/PCM renderer checks when Python is
+available. They check WAV headers, pacing and identical offline/paced samples
+and traces without downloading assets. The shareware fetcher uses portable
+Python filesystem/network APIs.
+`compare_reference.py` accepts `--cc C:\path\to\gcc.exe` (or Clang); its default
+is `CC` when set, otherwise `gcc` on Windows and `cc` on Unix. Pass the built
+`.exe` as its renderer argument. The reference tool requires GCC/Clang flags.
 
 ## Shareware data and on-disk layouts
 
