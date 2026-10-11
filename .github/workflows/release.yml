@@ -11,6 +11,7 @@ on:
     paths:
       - .github/workflows/release.yml
       - scripts/package.sh
+      - scripts/package.ps1
       - scripts/fetch_shareware.sh
       - README.rst
   workflow_dispatch:
@@ -117,68 +118,59 @@ jobs:
           if-no-files-found: error
 
   package-windows:
-    # Windows x86_64 zip, built with MinGW-w64 and linked statically so it
-    # needs no extra DLLs.  Packaging details follow WOLF-37.
+    # Windows x64 zip built with MinGW-w64 (static libgcc/libstdc++ not needed:
+    # scripts/package.ps1 bundles any non-system runtime DLLs it imports).
     runs-on: windows-latest
-    defaults:
-      run:
-        shell: msys2 {0}
     steps:
       - uses: actions/checkout@v4
 
       - uses: msys2/setup-msys2@v2
         with:
           msystem: MINGW64
+          path-type: inherit
           update: false
           install: >-
             mingw-w64-x86_64-gcc
             mingw-w64-x86_64-cmake
             mingw-w64-x86_64-ninja
             mingw-w64-x86_64-python
-            zip
 
       - name: Version
         id: version
+        shell: pwsh
         run: |
-          if [ "$GITHUB_REF_TYPE" = tag ]; then
-            version="${GITHUB_REF_NAME#v}"
-          else
-            version="0.0.0-git$(git rev-parse --short HEAD)"
-          fi
-          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if ($env:GITHUB_REF_TYPE -eq 'tag') { $v = $env:GITHUB_REF_NAME -replace '^v', '' }
+          else { $v = '0.0.0-git' + $env:GITHUB_SHA.Substring(0, 7) }
+          "version=$v" >> $env:GITHUB_OUTPUT
 
-      - name: Configure
-        run: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_EXE_LINKER_FLAGS=-static
-
-      - name: Build
-        run: cmake --build build
-
-      - name: Tests (data test skips without WL1)
-        run: ctest --test-dir build --output-on-failure --no-tests=error
+      - name: Configure and build
+        shell: msys2 {0}
+        run: |
+          cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo
+          cmake --build build
+          ctest --test-dir build --output-on-failure --no-tests=error
 
       - name: Package
+        shell: pwsh
         run: |
-          v="${{ steps.version.outputs.version }}"
-          d="raylib_wolf3d-$v-windows-x86_64"
-          mkdir -p "dist/$d"
-          cp build/raylib_wolf3d.exe README.rst "dist/$d/"
-          cp build/_deps/raylib-src/LICENSE "dist/$d/LICENSE-raylib.txt"
-          (cd dist && zip -r "$d.zip" "$d" && rm -rf "$d")
-          if unzip -l dist/*.zip | grep -Ei '\.(wl[0-9]|sod|sd[0-9m])$'; then exit 1; fi
-          (cd dist && sha256sum *.zip > SHA256SUMS-windows)
-          cat dist/SHA256SUMS-windows
+          $env:PATH = 'C:\msys64\mingw64in;' + $env:PATH
+          scripts\package.ps1 -BuildDir build -OutDir dist "${{ steps.version.outputs.version }}"
 
-      - name: Check package runs (exit 2 without data)
+      - name: Check package
+        shell: pwsh
         run: |
-          mkdir unpacked && unzip -q dist/*.zip -d unpacked
-          set +e
-          unpacked/*/raylib_wolf3d.exe -data "$RUNNER_TEMP/nodata"; rc=$?
-          set -e
-          test "$rc" = 2
+          $z = Get-ChildItem dist -Filter *.zip | Select-Object -First 1
+          Expand-Archive $z.FullName -DestinationPath unpacked
+          Get-ChildItem -Recurse unpacked -File | ForEach-Object { $_.FullName }
+          if (Get-ChildItem -Recurse unpacked -File | Where-Object { $_.Extension -match '^\.(wl\d|sod|sdm|sd\d)$' }) { exit 1 }
+          $exe = (Get-ChildItem -Recurse unpacked -Filter raylib_wolf3d.exe | Select-Object -First 1).FullName
+          & $exe -data (Join-Path $env:RUNNER_TEMP 'nodata')
+          Write-Host "exit code: $LASTEXITCODE"
+          if ($LASTEXITCODE -ne 2) { exit 1 }
 
       - uses: actions/upload-artifact@v4
         with:
-          name: raylib_wolf3d-${{ steps.version.outputs.version }}-windows-x86_64
+          name: raylib_wolf3d-${{ steps.version.outputs.version }}-windows-x64
           path: dist/
           if-no-files-found: error
 

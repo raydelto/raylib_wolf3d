@@ -123,7 +123,6 @@ jobs:
         run: |
           # Missing data must be reported, not crash (exit 2).
           $exe = (Get-ChildItem -Recurse build -Filter raylib_wolf3d.exe | Select-Object -First 1).FullName
-          & $exe -data "$env:RUNNER_TEMP
-odata"
+          & $exe -data (Join-Path $env:RUNNER_TEMP 'nodata')
           Write-Host "exit code: $LASTEXITCODE"
           if ($LASTEXITCODE -ne 2) { exit 1 }
