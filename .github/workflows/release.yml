@@ -116,9 +116,75 @@ jobs:
           path: dist/
           if-no-files-found: error
 
+  package-windows:
+    # Windows x86_64 zip, built with MinGW-w64 and linked statically so it
+    # needs no extra DLLs.  Packaging details follow WOLF-37.
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: false
+          install: >-
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-ninja
+            mingw-w64-x86_64-python
+            zip
+
+      - name: Version
+        id: version
+        run: |
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            version="${GITHUB_REF_NAME#v}"
+          else
+            version="0.0.0-git$(git rev-parse --short HEAD)"
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Configure
+        run: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_EXE_LINKER_FLAGS=-static
+
+      - name: Build
+        run: cmake --build build
+
+      - name: Tests (data test skips without WL1)
+        run: ctest --test-dir build --output-on-failure --no-tests=error
+
+      - name: Package
+        run: |
+          v="${{ steps.version.outputs.version }}"
+          d="raylib_wolf3d-$v-windows-x86_64"
+          mkdir -p "dist/$d"
+          cp build/raylib_wolf3d.exe README.rst "dist/$d/"
+          cp build/_deps/raylib-src/LICENSE "dist/$d/LICENSE-raylib.txt"
+          (cd dist && zip -r "$d.zip" "$d" && rm -rf "$d")
+          if unzip -l dist/*.zip | grep -Ei '\.(wl[0-9]|sod|sd[0-9m])$'; then exit 1; fi
+          (cd dist && sha256sum *.zip > SHA256SUMS-windows)
+          cat dist/SHA256SUMS-windows
+
+      - name: Check package runs (exit 2 without data)
+        run: |
+          mkdir unpacked && unzip -q dist/*.zip -d unpacked
+          set +e
+          unpacked/*/raylib_wolf3d.exe -data "$RUNNER_TEMP/nodata"; rc=$?
+          set -e
+          test "$rc" = 2
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: raylib_wolf3d-${{ steps.version.outputs.version }}-windows-x86_64
+          path: dist/
+          if-no-files-found: error
+
   draft-release:
     if: github.ref_type == 'tag'
-    needs: package
+    needs: [package, package-windows]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -136,4 +202,4 @@ jobs:
           gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" \
             --draft --verify-tag --title "raylib_wolf3d $GITHUB_REF_NAME" \
             --notes-file dist/RELEASE_NOTES.md \
-            dist/*.tar.gz dist/*.deb dist/SHA256SUMS
+            dist/*.tar.gz dist/*.deb dist/*.zip dist/SHA256SUMS dist/SHA256SUMS-windows
