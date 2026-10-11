@@ -209,7 +209,13 @@ if(BUILD_TESTING)
   target_link_options(wolf_render_test PRIVATE -Wl,--gc-sections)
   target_link_libraries(wolf_render_test PRIVATE m)
   add_test(NAME core_renderer COMMAND wolf_render_test)
-  set(WOLF3D_TEST_DATA "$ENV{HOME}/wolf3d-data/shareware" CACHE PATH "External WL1 data for core tests")
+  if(WIN32)
+    set(WOLF3D_TEST_DATA "$ENV{USERPROFILE}/wolf3d-data/shareware" CACHE PATH "External WL1 data for core tests")
+  elseif(DEFINED ENV{HOME} AND NOT "$ENV{HOME}" STREQUAL "")
+    set(WOLF3D_TEST_DATA "$ENV{HOME}/wolf3d-data/shareware" CACHE PATH "External WL1 data for core tests")
+  else()
+    set(WOLF3D_TEST_DATA "$ENV{USERPROFILE}/wolf3d-data/shareware" CACHE PATH "External WL1 data for core tests")
+  endif()
   add_test(NAME core_wl1_data COMMAND wolf_core_data_test "${WOLF3D_TEST_DATA}")
   set_tests_properties(core_wl1_data PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 30)
   add_test(NAME core_codecs COMMAND wolf_codec_test)
@@ -227,6 +233,12 @@ if(BUILD_TESTING)
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/persist_check.py
     $<TARGET_FILE:raylib_wolf3d> ${WOLF3D_TEST_DATA} ${CMAKE_CURRENT_BINARY_DIR}/persist_check)
   set_tests_properties(persist_check PROPERTIES SKIP_REGULAR_EXPRESSION "SKIPPED" TIMEOUT 600)
+
+  # No-data smoke test: missing data returns 2, empty placeholder files return 1 (VSWAP short read)
+  add_test(NAME smoke_nodata COMMAND Python3::Interpreter -I
+    ${CMAKE_CURRENT_SOURCE_DIR}/tests/smoke_check.py
+    $<TARGET_FILE:raylib_wolf3d>)
+  set_tests_properties(smoke_nodata PROPERTIES TIMEOUT 30)
 
   # The persistence streams and paths on their own: no data, no display (WOLF-18).
   add_executable(wolf_persist_test tests/persist_test.c port/wl_persist.c)
