@@ -153,7 +153,7 @@ jobs:
       - name: Package
         shell: pwsh
         run: |
-          $env:PATH = 'C:\msys64\mingw64in;' + $env:PATH
+          $env:PATH = 'C:\msys64\mingw64\bin;' + $env:PATH
           scripts\package.ps1 -BuildDir build -OutDir dist "${{ steps.version.outputs.version }}"
 
       - name: Check package
