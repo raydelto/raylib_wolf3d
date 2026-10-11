@@ -55,10 +55,10 @@ cmake -S audio -B build-audio -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build build-audio
 ctest --test-dir build-audio --output-on-failure
 # MSVC: run the same from an "x64 Native Tools" prompt with -DCMAKE_C_COMPILER=cl
-python audio	estsetch_shareware.py --dir $HOME\wolf3d-data\shareware
+python audio/tests/fetch_shareware.py --dir $HOME\wolf3d-data\shareware
 build-audio\wolf_audio_render.exe $HOME\wolf3d-data\shareware music 0 12 corner.wav --realtime
 # Reference check: a Wolf4SDL checkout at the pinned SHA; needs gcc/clang/cc on PATH (or $env:CC)
-python audio	ests\compare_reference.py C:\src\Wolf4SDL $HOME\wolf3d-data\shareware build-audio\wolf_audio_render.exe
+python audio/tests/compare_reference.py C:\src\Wolf4SDL $HOME\wolf3d-data\shareware build-audio\wolf_audio_render.exe
 ```
 
 ## Shareware data and on-disk layouts
