@@ -22,6 +22,16 @@
       }
     },
     {
+      "name": "web",
+      "displayName": "WebAssembly (Emscripten; source ~/emsdk/emsdk_env.sh first)",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build-web",
+      "toolchainFile": "$env{EMSDK}/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+    {
       "name": "windows-mingw",
       "displayName": "Windows MinGW-w64 + Ninja (RelWithDebInfo)",
       "generator": "Ninja",
@@ -57,6 +67,10 @@
     {
       "name": "asan",
       "configurePreset": "asan"
+    },
+    {
+      "name": "web",
+      "configurePreset": "web"
     },
     {
       "name": "windows-mingw",
