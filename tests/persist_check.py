@@ -27,9 +27,16 @@ if not os.path.exists(os.path.join(data, "VSWAP.WL1")) or (xvfb and not shutil.w
 
 cfgdir = os.path.join(work, "raylib_wolf3d")
 env = dict(os.environ, XDG_CONFIG_HOME=work, ALSA_CONFIG_PATH="")
+# macOS resolves config under $HOME/Library/Application Support and ignores
+# XDG_CONFIG_HOME (WOLF-63); point HOME at the workdir so the harness exercises
+# the exact file the game writes and reads.
+if sys.platform == "darwin":
+    env["HOME"] = work
+    cfgdir = os.path.join(work, "Library", "Application Support", "raylib_wolf3d")
 
 
 def run(*args):
+    os.makedirs(work, exist_ok=True)   # macOS game creates $HOME/Library inside it
     p = subprocess.run(xvfb + [game, "-data", data] + list(args),
                        env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
                        errors="replace", timeout=240)

@@ -36,6 +36,12 @@ with tempfile.TemporaryDirectory(prefix="wolf_smoke_fake_") as tmp:
 
     result = subprocess.run(cmd, capture_output=True, text=True)
     combined = (result.stdout or "") + (result.stderr or "")
+    # A headless CI runner without a WindowServer/GL context segfaults inside
+    # GLFW's Cocoa backend before the game can exit cleanly; skip there the
+    # same way the Linux runner skips without xvfb-run.
+    if result.returncode < 0 and "NSGL: Failed to find a suitable pixel format" in combined:
+        print("SKIPPED: no usable GL context on this display (headless macOS)")
+        sys.exit(0)
     assert result.returncode == 1, (
         f"Empty placeholder files: expected exit code 1, got {result.returncode}.\n"
         f"Output:\n{combined}"
