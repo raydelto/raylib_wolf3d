@@ -39,7 +39,7 @@ Because individual intermediate pull request branches did not link or run in iso
   ```
 - **Evidence / Run Logs**:
   - Multica issue [WOLF-38](mention://issue/01a128c4-7b33-7744-a4d8-fc4d3c880e05) comment `01a128db-10c7-7429-9e8a-fb5291f2be88`.
-  - Report deliverable [`docs/WINDOWS_VERIFICATION.md`](file:///docs/WINDOWS_VERIFICATION.md) and automated runner [`tests/windows_e2e_check.py`](file:///tests/windows_e2e_check.py).
+  - Report deliverable `docs/WINDOWS_VERIFICATION.md` and automated runner `tests/windows_e2e_check.py`.
 
 ### 2. Interactive User-Session Release Binary (`raylib_wolf3d.exe`)
 - **Artifact SHA-256**: `d120a36506b884cec7fb8db66b1a4ff887aeba57293d588f0cb59218b501149d` (3,026,656 bytes, stripped release binary).
