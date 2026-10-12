@@ -9,7 +9,8 @@
 
     persist_check.py GAME DATA WORKDIR
 
-Prints SKIPPED (CTest SKIP_REGULAR_EXPRESSION) without data or xvfb-run.
+Prints SKIPPED (CTest SKIP_REGULAR_EXPRESSION) without data or (except on
+macOS) xvfb-run.
 """
 import os
 import shutil
@@ -18,7 +19,9 @@ import subprocess
 import sys
 
 game, data, work = sys.argv[1:4]
-if not os.path.exists(os.path.join(data, "VSWAP.WL1")) or not shutil.which("xvfb-run"):
+# macOS opens a real Cocoa window in the login session; no Xvfb there.
+xvfb = [] if sys.platform == "darwin" else ["xvfb-run", "-a", "-s", "-screen 0 640x480x24"]
+if not os.path.exists(os.path.join(data, "VSWAP.WL1")) or (xvfb and not shutil.which("xvfb-run")):
     print("SKIPPED: needs shareware data and xvfb-run")
     sys.exit(0)
 
@@ -27,7 +30,7 @@ env = dict(os.environ, XDG_CONFIG_HOME=work, ALSA_CONFIG_PATH="")
 
 
 def run(*args):
-    p = subprocess.run(["xvfb-run", "-a", "-s", "-screen 0 640x480x24", game, "-data", data] + list(args),
+    p = subprocess.run(xvfb + [game, "-data", data] + list(args),
                        env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
                        errors="replace", timeout=240)
     return p.returncode, p.stdout

@@ -295,7 +295,8 @@ Audio integration tests and device recordings are described in
 ``audio/README.md``.
 
 ``demo_sync`` (see above) needs the data and ``xvfb-run``, and skips without
-them.
+them.  On macOS it and ``persist_check`` open a real window instead of using
+Xvfb.
 
 WebAssembly build
 -----------------

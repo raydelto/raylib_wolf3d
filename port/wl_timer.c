@@ -191,6 +191,26 @@ void WL_SleepUntilTick (double tick)
 		ts.tv_sec++;
 		ts.tv_nsec -= 1000000000L;
 	}
+#ifdef __APPLE__
+	/* Darwin has no clock_nanosleep: sleep the remaining relative time. */
+	for (;;)
+	{
+		struct timespec now, rel;
+
+		clock_gettime(CLOCK_MONOTONIC, &now);
+		rel.tv_sec = ts.tv_sec - now.tv_sec;
+		rel.tv_nsec = ts.tv_nsec - now.tv_nsec;
+		if (rel.tv_nsec < 0)
+		{
+			rel.tv_sec--;
+			rel.tv_nsec += 1000000000L;
+		}
+		if (rel.tv_sec < 0 || (rel.tv_sec == 0 && rel.tv_nsec == 0))
+			break;
+		if (nanosleep(&rel, NULL) == 0)
+			break;
+	}
+#else
 	while (clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &ts, NULL) == EINTR)
 		;
 #endif

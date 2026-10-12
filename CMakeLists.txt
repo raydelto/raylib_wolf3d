@@ -135,9 +135,12 @@ else()
   set(WOLF3D_WARNINGS -Wall ${WOLF3D_CHAR_FLAG})
   set(WOLF3D_TEST_WARNINGS -Wall -Wextra ${WOLF3D_CHAR_FLAG})
 endif()
-# Only the GNU ld family understands --gc-sections (not link.exe, not Apple ld).
+# Only the GNU ld family understands --gc-sections (not link.exe); Apple ld
+# has -dead_strip.
 if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang" AND NOT APPLE)
   set(WOLF3D_GC_LINK -Wl,--gc-sections)
+elseif(APPLE)
+  set(WOLF3D_GC_LINK -Wl,-dead_strip)
 endif()
 # libm is a separate library on Unix only (part of the CRT on Windows).
 if(WIN32)
@@ -246,9 +249,14 @@ endif()
 
 include(CTest)
 if(BUILD_TESTING)
+  # AppleClang finds the SDK headers only through -isysroot.
+  set(WOLF3D_GUARD_CFLAGS)
+  if(APPLE AND CMAKE_OSX_SYSROOT)
+    set(WOLF3D_GUARD_CFLAGS -isysroot ${CMAKE_OSX_SYSROOT})
+  endif()
   add_test(NAME registered_stub_guard COMMAND Python3::Interpreter -I
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/registered_stub_guard.py
-    ${CMAKE_C_COMPILER} ${CMAKE_CURRENT_SOURCE_DIR})
+    ${CMAKE_C_COMPILER} ${CMAKE_CURRENT_SOURCE_DIR} ${WOLF3D_GUARD_CFLAGS})
   set_tests_properties(registered_stub_guard PROPERTIES TIMEOUT 30)
   add_executable(wolf_boss_key_test tests/boss_key_test.c WOLFSRC/WL_MENU.C)
   target_include_directories(wolf_boss_key_test PRIVATE port WOLFSRC)
