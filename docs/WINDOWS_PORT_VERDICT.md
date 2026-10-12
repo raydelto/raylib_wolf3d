@@ -7,55 +7,57 @@
 - **Target OS**: Windows 11 x86_64
 - **Final Verdict**: **APPROVED / PASS**
 
-All core pull requests implementing the Windows port of `raylib_wolf3d` across Stages 1–5 have been reviewed, verified, and merged into `master`.
+All pull requests implementing the Windows port of `raylib_wolf3d` across Stages 1–5 have been reviewed, verified, and merged into `master`.
 
 This document records:
-1. The **exact provenance** (composed source revision, toolchain, build commands, and binary checksums) of the binaries used for live Windows 11 verification.
-2. The **scope and qualifications** of individual test claims (distinguishing what was verified on Windows versus Linux-only evidence).
+1. The **exact provenance and constituent sources** for each binary artifact evaluated during live Windows 11 verification.
+2. The **precise scope and qualifications** of individual test assertions (distinguishing what was verified natively on Windows from Linux-only evidence).
 3. The **complete PR integration record** across the entire port lifecycle.
 
 ---
 
 ## Provenance of Live Windows Verification
 
-Because the Windows port spans multiple interdependent components (CMake toolchain, C portability shims, Win32 monotonic timer, Nuked OPL3 audio pacing, and packaging), live runtime testing was performed against an **integrated composed build tree** rather than isolated, non-linking intermediate branches.
+Because individual intermediate pull request branches did not link or run in isolation before platform components landed, live runtime verification was conducted using **composed standalone build trees**.
 
-### 1. Composed Source Revision
-- **Composed Git Revision**: `24eab54b918196dd46de00d22d19ee987899ebaf` (branch `agent/wolf-win-verifier-agy/ad8d3f5e3cbc`, PR #20)
-- **Constituent Components Integrated**:
-  - **WOLF-31 (PR #16)**: CMake build configuration, MSVC flags, `windows-mingw` preset
-  - **WOLF-32 (PR #19)**: C portability shims (`_WIN32` memory status, `_Noreturn`, `stdatomic.h`, `FindFirstFileA`, `MoveFileExA`)
-  - **WOLF-33 (PR #17)**: Monotonic timer (`QueryPerformanceCounter` + waitable thread) and `%APPDATA%\raylib_wolf3d` path resolution
-  - **WOLF-34 (PR #18)**: Nuked OPL3 audio pacing via QPC + Sleep, binary CSV tracing
-  - **WOLF-38 (PR #20)**: Verification harness `tests/windows_e2e_check.py` and report `docs/WINDOWS_VERIFICATION.md`
+### 1. Automated Verification Binary (`build-mingw\raylib_wolf3d.exe`)
+- **Artifact SHA-256**: `ad010d24b5d4d68fd3baf3e29cb189494d4483bae78300df354e0291d002466a` (8,828,903 bytes, RelWithDebInfo).
+- **Base Source Revision**: Git commit `24eab54b918196dd46de00d22d19ee987899ebaf` (PR #20 / WOLF-38 branch `agent/wolf-win-verifier-agy/ad8d3f5e3cbc`).
+- **Applied Local Patches**: WOLF-32 portability patch (`patch-32.patch` from `wolf-38` workspace), providing:
+  - `ID_MM.C`: memory queries via `GlobalMemoryStatusEx`
+  - `port/wl_compat.c`: directory matching via `FindFirstFileA`
+  - `port/wl_compat.h`: atomic replacement and `_commit` fsync
+  - `tests/sd_integration_test.c`: `_putenv` shims
+- **Timer / Threading Implementation in this Binary**:
+  - At base commit `24eab54`, `port/wl_timer.c` used the POSIX `pthread_create` and `clock_nanosleep` implementation provided at runtime via MinGW-w64's `libwinpthread-1.dll`.
+  - The Win32 multimedia timer / QPC implementation from WOLF-33 (PR #17) was not integrated into this local binary tree; 70 Hz timing precision was achieved via winpthreads high-resolution monotonic sleep.
+- **Toolchain**: MinGW-w64 GCC 15.2.0 (`x86_64-w64-mingw32`, MSYS2), Ninja 1.12.1, CMake 3.31.5 on Windows 11 Pro x86_64.
+- **Build Commands**:
+  ```powershell
+  cmake -B build-mingw -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo
+  cmake --build build-mingw
+  ```
+- **Evidence / Run Logs**:
+  - Multica issue [WOLF-38](mention://issue/01a128c4-7b33-7744-a4d8-fc4d3c880e05) comment `01a128db-10c7-7429-9e8a-fb5291f2be88`.
+  - Report deliverable [`docs/WINDOWS_VERIFICATION.md`](file:///docs/WINDOWS_VERIFICATION.md) and automated runner [`tests/windows_e2e_check.py`](file:///tests/windows_e2e_check.py).
 
-### 2. Toolchain & Environment
-- **Host OS**: Windows 11 Pro x86_64 (OS Build 22631)
-- **Compiler**: MinGW-w64 GCC 15.2.0 (`x86_64-w64-mingw32`, MSYS2)
-- **Build System**: Ninja 1.12.1 + CMake 3.31.5
-- **Runtime Dependency**: `libwinpthread-1.dll` (MSYS2 MinGW-w64)
-- **Asset Data**: Freely distributable shareware v1.4 data (`*.WL1`), verified with SHA-256 hashes
+### 2. Interactive User-Session Release Binary (`raylib_wolf3d.exe`)
+- **Artifact SHA-256**: `d120a36506b884cec7fb8db66b1a4ff887aeba57293d588f0cb59218b501149d` (3,026,656 bytes, stripped release binary).
+- **Composed Source Revision**: Built from PR #23's branch (`agent/wolf-win-verifier-agy/f8ffd873c334`), which integrated PR #16 (CMake presets), PR #17 (Win32 QPC timer and APPDATA paths), PR #18 (OPL3 pacing), and packaging scripts from PR #14.
+- **Builder**: Agent `mika-windows` (`dee09883-c03f-4a22-a44e-3047b794aa2f`) in workspace `wolf-39-728f0c2ad7a9`.
+- **Packaging**: Distributed in `raylib_wolf3d-1.0.0-windows-x64-shareware.zip` (SHA-256 `d8021e8f20340e8bf1057e91db361dac3df38298c29ff7265f5ad59323a2fa75`).
+- **Evidence**:
+  - Live console session (`WinSta0\Default`, Session 2) execution.
+  - Multica issue [WOLF-39](mention://issue/01a128c4-874c-73ea-85fc-f2ce26673f7a) comment `01a12ac0-748d-749c-8ce5-8c09735cf0d0` and approval comment `01a12abd-27dd-7d02-929a-986e09abd003`.
 
-### 3. Build Commands
-```powershell
-cmake -B build-mingw -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo
-cmake --build build-mingw
-```
-
-### 4. Verified Executable Checksums
-| Binary Artifact | File Size | SHA-256 Checksum | Purpose / Evidence Link |
-|---|---|---|---|
-| `build-mingw\raylib_wolf3d.exe` | 8,828,903 bytes | `ad010d24b5d4d68fd3baf3e29cb189494d4483bae78300df354e0291d002466a` | Composed automated verification via `tests/windows_e2e_check.py` |
-| `chk\raylib_wolf3d-1.0.0-windows-x64\raylib_wolf3d.exe` | 3,026,656 bytes | `d120a36506b884cec7fb8db66b1a4ff887aeba57293d588f0cb59218b501149d` | Stripped release binary verified in interactive user session |
-| `raylib_wolf3d-1.0.0-windows-x64-shareware.zip` | 1,941,832 bytes | `d8021e8f20340e8bf1057e91db361dac3df38298c29ff7265f5ad59323a2fa75` | Standalone GitHub release package on tag `v1.0.0` |
-
-*Note: Per-head verification of earlier individual PR branches (such as #16 and #19) verified source diff correctness and isolated unit compilation. Full end-to-end game loop execution, demo sync, and save/load were exercised exclusively using the composed binaries above.*
+### 3. Distinction: Composed Runtime vs. Per-Head Review
+Per-head verification of individual pull requests (e.g. PR #16, #17, #18, #19) verified source diff correctness, compiler warning cleanliness, and isolated component compilation. Complete end-to-end game execution, demo replay hashes, and save/load integrity were evaluated exclusively using the composed binaries identified above.
 
 ---
 
 ## PR Review & Merge Record
 
-All pull requests implementing the Windows port have cleared their review and verification gates and are merged into `master`:
+All pull requests implementing the Windows port have cleared review and verification gates and are merged into `master`:
 
 | PR # | Issue | Component | Author | Reviewed Head SHA | Merge Commit on `master` |
 |:---:|:---:|:---|:---:|:---:|:---:|
@@ -80,25 +82,30 @@ Automated verification suite `tests/windows_e2e_check.py` was executed directly 
 python tests\windows_e2e_check.py build-mingw\raylib_wolf3d.exe $env:USERPROFILE\wolf3d-data\shareware
 ```
 
-### Detailed Test Assertions & Qualification Matrix
+### Detailed Test Assertions & Scope Qualification Matrix
 
 | Test Step | Assertion Exercised | Output / Evidence | Verified on Windows? |
 |---|---|---|:---:|
-| **[1/5] Missing Data** | Exits with code `2` when data path is missing | Return code: `2` (no crash, clear stderr message) | **YES** |
-| **[2/5] Monotonic Clock** | 70 Hz PIT timer tick pacing via QPC | `70 x VL_WaitVBL(1): 1000.4 ms` (<0.1% jitter)<br>`busy wait TimeCount 0->140: 1999.9 ms` | **YES** |
+| **[1/5] Missing Data** | Exits with code `2` when data directory is missing | Return code `2` (clean stderr error, no crash) | **YES** |
+| **[2/5] Monotonic Clock** | 70 Hz PIT timer tick pacing | `70 x VL_WaitVBL(1): 1000.4 ms` (<0.1% jitter)<br>`busy wait TimeCount 0->140: 1999.9 ms` | **YES** *(winpthreads)* |
 | **[3/5] Save/Load Integrity** | In-memory serialization round-trip & corruption rejection (`-savetest`) | State hash: `4c492f7f` restored bit-exact<br>Byte identical re-save: 19,079 -> 19,079 bytes<br>8 corruption variants rejected without mutating state | **YES** |
 | **[4/5] Demo Synchronization** | Bit-exact demo input replay across all 4 shareware demos (`-demotest all -viewsize 19`) | Demo 0: `f1e6cd20` (1152 frames, 4608 tics, died)<br>Demo 1: `dec12253` (1284 frames, 5136 tics, died)<br>Demo 2: `47743191` (671 frames, 2684 tics, died)<br>Demo 3: `4b0dd2a9` (633 frames, 2532 tics, died) | **YES** |
-| **[5/5] Config Path Acceptance** | Valid `CONFIG.WL1` binary accepted from `%APPDATA%\raylib_wolf3d` | Return code `0`, no "ignoring invalid" fallback stderr warnings | **YES (Qualified)** |
+| **[5/5] Config Fixture Launch** | Successful launch with config fixture present under redirected `%APPDATA%` | Return code `0` from `-savetest` run | **YES (Qualified)** |
 
-### Qualification on Configuration Testing (Step 5)
-- **What was verified on Windows**: Step 5 synthesized a valid binary configuration layout with standard control mappings in a temporary `%APPDATA%\raylib_wolf3d` directory. It confirmed that the Windows path resolution properly opened and parsed valid configuration data without falling back to defaults or logging errors.
-- **What was NOT verified on Windows**: Step 5 did **not** test rejection of out-of-bounds scan codes, invalid mouse/joystick button indices, or mutated config save/reload cycles. Those boundary validations were previously verified on Linux via `tests/persist_check.py` (WOLF-18 / WOLF-7) and remain unverified natively on Windows.
+### Precise Qualifications on Configuration Testing (Step 5)
+- **Observed Behavior**: Step 5 synthesized a valid binary `CONFIG.WL1` fixture with standard control mappings in a temporary directory and executed `raylib_wolf3d.exe -data <data> -nosound -savetest` with `APPDATA` and `LOCALAPPDATA` pointed to that directory. The process launched and completed `-savetest` with exit code `0`.
+- **Known Test Limitations**:
+  - The script asserts `if res.returncode != 0 or "ignoring invalid" in res.stdout`. However, `ReadConfigFile` (`WOLFSRC/WL_MAIN.C:151`) logs fallback warnings to **stderr**, not stdout.
+  - Running `-savetest` exits immediately after save serialization testing and does not query or log active control mappings. Thus, step 5 verifies a **successful launch with a valid config fixture in a redirected environment**, but does not assert whether the fixture was parsed versus defaulting.
+- **Unverified on Windows**:
+  - Rejection of out-of-bounds scan codes and negative button indices was **not** tested in the Windows E2E harness.
+  - In-game modification and reload of user settings was **not** tested in the Windows E2E harness.
+  - Both boundary rejection and reload round-trips were verified on Linux under `tests/persist_check.py` (WOLF-18/WOLF-7) and remain marked unverified natively on Windows.
 
 ---
 
 ## Interactive User Session Validation
 
-To confirm real-world interactive behavior beyond headless automation:
 - **Environment**: Interactive desktop console session (`WinSta0\Default`, Session 2).
 - **Execution**: `chk\raylib_wolf3d-1.0.0-windows-x64\raylib_wolf3d.exe` (`d120a365`) launched with bundled runtime DLLs and shareware v1.4 assets.
 - **Human Verification Feedback**: Evaluated and approved by project lead Raydelto Hernandez:
