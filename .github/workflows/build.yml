@@ -71,11 +71,13 @@ jobs:
           test "$rc" = 1
           grep -q 'VSWAP: short read' run.txt
 
-  macos-14:
+  macos-15:
     # Apple Silicon (arm64), AppleClang; plain char is signed on Apple arm64.
+    # macos-15 instead of macos-14: GitHub retires the macos-14 image on
+    # 2026-11-02 (brownouts underway); keep the 13.0 deployment target below.
     # No game data in CI: core_wl1_data, demo_sync, persist_check and
     # sound_manager skip.
-    runs-on: macos-14
+    runs-on: macos-15
     env:
       HOMEBREW_NO_AUTO_UPDATE: 1
       HOMEBREW_NO_INSTALL_CLEANUP: 1
