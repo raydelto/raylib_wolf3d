@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Visual Studio 2022 (17.5+) project for the shareware (WL1) game.  CMake stays the
+     primary build; see msvc/README.md.  raylib 5.5 comes from vcpkg (../vcpkg.json). -->
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>17.0</VCProjectVersion>
+    <ProjectGuid>{6B1D2A5E-3C47-4F0A-9E1B-7A52D8C0F3A1}</ProjectGuid>
+    <RootNamespace>raylib_wolf3d</RootNamespace>
+    <Keyword>Win32Proj</Keyword>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <RepoRoot>$(MSBuildThisFileDirectory)..\</RepoRoot>
+    <!-- vcpkg manifest mode: static raylib, dynamic CRT, so no DLLs next to the exe. -->
+    <VcpkgEnableManifest>true</VcpkgEnableManifest>
+    <VcpkgTriplet>x64-windows-static-md</VcpkgTriplet>
+    <VcpkgManifestRoot>$(RepoRoot)</VcpkgManifestRoot>
+    <!-- Not integrated user-wide (vcpkg integrate install)?  Use VCPKG_ROOT, which the
+         Visual Studio developer prompt sets when the vcpkg component is installed. -->
+    <WolfVcpkgImport Condition="'$(VcpkgPropsImported)'!='true' And '$(VCPKG_ROOT)'!='' And Exists('$(VCPKG_ROOT)\scripts\buildsystems\msbuild\vcpkg.targets')">true</WolfVcpkgImport>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <PlatformToolset>v143</PlatformToolset>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)'=='Debug'" Label="Configuration">
+    <UseDebugLibraries>true</UseDebugLibraries>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)'=='Release'" Label="Configuration">
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <WholeProgramOptimization>false</WholeProgramOptimization>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <Import Condition="'$(WolfVcpkgImport)'=='true'" Project="$(VCPKG_ROOT)\scripts\buildsystems\msbuild\vcpkg.props" />
+  <PropertyGroup>
+    <OutDir>$(RepoRoot)build-vs\$(Configuration)\</OutDir>
+    <IntDir>$(RepoRoot)build-vs\obj\$(Configuration)\</IntDir>
+    <TargetName>raylib_wolf3d</TargetName>
+    <GeneratedDir>$(IntDir)generated\</GeneratedDir>
+    <PythonExe Condition="'$(PythonExe)'==''">python</PythonExe>
+    <!-- F5: run from the shareware data directory (kept outside git).  Override by setting
+         WOLF3D_DATA in the environment; same default as the CMake tests. -->
+    <Wolf3dData>$(WOLF3D_DATA)</Wolf3dData>
+    <Wolf3dData Condition="'$(Wolf3dData)'==''">$(USERPROFILE)\wolf3d-data\shareware</Wolf3dData>
+    <LocalDebuggerWorkingDirectory>$(Wolf3dData)</LocalDebuggerWorkingDirectory>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <CompileAs>CompileAsC</CompileAs>
+      <LanguageStandard_C>stdc11</LanguageStandard_C>
+      <AdditionalOptions>/experimental:c11atomics /utf-8 %(AdditionalOptions)</AdditionalOptions>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(RepoRoot)port;$(RepoRoot)WOLFSRC;$(RepoRoot)audio;$(GeneratedDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <SDLCheck>false</SDLCheck>
+      <ConformanceMode>false</ConformanceMode>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>raylib.lib;winmm.lib;gdi32.lib;shell32.lib;opengl32.lib;user32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)'=='Debug'">
+    <ClCompile>
+      <Optimization>Disabled</Optimization>
+      <PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)'=='Release'">
+    <ClCompile>
+      <Optimization>MaxSpeed</Optimization>
+      <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+    </ClCompile>
+    <Link>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="..\WOLFSRC\ID_CA.C" />
+    <ClCompile Include="..\WOLFSRC\ID_IN.C" />
+    <ClCompile Include="..\WOLFSRC\ID_MM.C" />
+    <ClCompile Include="..\WOLFSRC\ID_PM.C" />
+    <ClCompile Include="..\WOLFSRC\ID_SD.C" />
+    <ClCompile Include="..\WOLFSRC\ID_US_1.C" />
+    <ClCompile Include="..\WOLFSRC\ID_VH.C" />
+    <ClCompile Include="..\WOLFSRC\ID_VL.C" />
+    <ClCompile Include="..\WOLFSRC\WL_ACT1.C" />
+    <ClCompile Include="..\WOLFSRC\WL_ACT2.C" />
+    <ClCompile Include="..\WOLFSRC\WL_AGENT.C" />
+    <ClCompile Include="..\WOLFSRC\WL_DEBUG.C" />
+    <ClCompile Include="..\WOLFSRC\WL_DRAW.C" />
+    <ClCompile Include="..\WOLFSRC\WL_GAME.C" />
+    <ClCompile Include="..\WOLFSRC\WL_INTER.C" />
+    <ClCompile Include="..\WOLFSRC\WL_MAIN.C" />
+    <ClCompile Include="..\WOLFSRC\WL_MENU.C" />
+    <ClCompile Include="..\WOLFSRC\WL_PLAY.C" />
+    <ClCompile Include="..\WOLFSRC\WL_SCALE.C" />
+    <ClCompile Include="..\WOLFSRC\WL_STATE.C" />
+    <ClCompile Include="..\WOLFSRC\WL_TEXT.C" />
+    <ClCompile Include="..\WOLFSRC\WOLFHACK.C" />
+    <ClCompile Include="..\port\wl_timer.c" />
+    <ClCompile Include="..\port\wl_videotest.c" />
+    <ClCompile Include="..\port\wl_compat.c" />
+    <ClCompile Include="..\port\wl_platform.c" />
+    <ClCompile Include="..\port\asm_stubs.c" />
+    <ClCompile Include="..\port\wl_data.c" />
+    <ClCompile Include="..\port\wl_raycast.c" />
+    <ClCompile Include="..\port\wl_demotest.c" />
+    <ClCompile Include="..\port\wl_persist.c" />
+    <ClCompile Include="..\port\id_raylib.c">
+      <PreprocessorDefinitions>WOLF3D_AUDIO_BACKEND;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+    <ClCompile Include="..\audio\sd_audio.c" />
+    <ClCompile Include="..\audio\vendor\opl3.c" />
+    <!-- Generated by the GenerateData / GenerateStates targets below. -->
+    <ClCompile Include="$(GeneratedDir)wl_objdata.c" />
+    <ClCompile Include="$(GeneratedDir)wl_states.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\port\*.h" />
+    <ClInclude Include="..\WOLFSRC\*.H" />
+    <ClInclude Include="..\audio\*.h" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <Import Condition="'$(WolfVcpkgImport)'=='true'" Project="$(VCPKG_ROOT)\scripts\buildsystems\msbuild\vcpkg.targets" />
+  <!-- Same two generators as CMakeLists.txt; needs Python 3 (use /p:PythonExe=py for the launcher). -->
+  <Target Name="GenerateData" BeforeTargets="ClCompile"
+          Inputs="$(RepoRoot)scripts\obj2c.py;$(RepoRoot)WOLFSRC\OBJ\GAMEPAL.OBJ;$(RepoRoot)WOLFSRC\OBJ\SIGNON.OBJ"
+          Outputs="$(GeneratedDir)wl_objdata.c">
+    <MakeDir Directories="$(GeneratedDir)" />
+    <Exec Command="&quot;$(PythonExe)&quot; &quot;$(RepoRoot)scripts\obj2c.py&quot; -o &quot;$(GeneratedDir)wl_objdata.c&quot; &quot;$(RepoRoot)WOLFSRC\OBJ\GAMEPAL.OBJ&quot; &quot;$(RepoRoot)WOLFSRC\OBJ\SIGNON.OBJ&quot;" />
+  </Target>
+  <Target Name="GenerateStates" BeforeTargets="ClCompile"
+          Inputs="$(RepoRoot)scripts\gen_states.py;$(RepoRoot)WOLFSRC\WL_AGENT.C;$(RepoRoot)WOLFSRC\WL_ACT2.C"
+          Outputs="$(GeneratedDir)wl_states.c">
+    <MakeDir Directories="$(GeneratedDir)" />
+    <Exec Command="&quot;$(PythonExe)&quot; &quot;$(RepoRoot)scripts\gen_states.py&quot; &gt; &quot;$(GeneratedDir)wl_states.c&quot;" />
+  </Target>
+</Project>

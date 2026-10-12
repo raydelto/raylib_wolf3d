@@ -12,3 +12,4 @@ build*/
 dist/
 web-smoke/
 web-shell/
+vcpkg_installed/
