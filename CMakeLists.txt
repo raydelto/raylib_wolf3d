@@ -319,7 +319,7 @@ if(BUILD_TESTING)
   add_test(NAME smoke_nodata COMMAND Python3::Interpreter -I
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/smoke_check.py
     $<TARGET_FILE:raylib_wolf3d>)
-  set_tests_properties(smoke_nodata PROPERTIES TIMEOUT 30)
+  set_tests_properties(smoke_nodata PROPERTIES TIMEOUT 30 SKIP_REGULAR_EXPRESSION "SKIPPED")
 
   # POSIX-only test (fork, mkdtemp); coverage stays on Linux CI.
   if(NOT WIN32)
