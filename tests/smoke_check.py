@@ -55,4 +55,15 @@ with tempfile.TemporaryDirectory(prefix="wolf_smoke_fake_") as tmp:
         f"Expected 'VSWAP: short read' in stderr/stdout, got:\n{combined}"
     )
 
-print("PASS: smoke tests (missing data exit 2, placeholder data exit 1 with 'VSWAP: short read')")
+    # Test 3: the headless structural check (no window or GL context) must
+    # reject the same placeholder files with exit code 1.
+    result = subprocess.run([game, "-data", str(fake_dir), "-datacheck"],
+                            capture_output=True, text=True)
+    combined = (result.stdout or "") + (result.stderr or "")
+    assert result.returncode == 1 and "truncated" in combined, (
+        f"-datacheck on placeholder files: expected exit code 1 and a truncated-data "
+        f"error, got {result.returncode}.\nOutput:\n{combined}"
+    )
+
+print("PASS: smoke tests (missing data exit 2, placeholder data exit 1 with 'VSWAP: short read', "
+      "-datacheck exit 1)")
