@@ -10,7 +10,7 @@
 All pull requests implementing the Windows port of `raylib_wolf3d` across Stages 1–5 have been reviewed, verified, and merged into `master`.
 
 This document records:
-1. The **exact provenance and constituent sources** for each binary artifact evaluated during live Windows 11 verification.
+1. The **observed source composition and provenance qualifications** for each binary artifact evaluated during live Windows 11 verification (qualifying that exact constituent source compositions are unrecovered).
 2. The **precise scope and qualifications** of individual test assertions (distinguishing what was verified natively on Windows from Linux-only evidence).
 3. The **complete PR integration record** across the entire port lifecycle.
 
@@ -20,14 +20,18 @@ This document records:
 
 Because individual intermediate pull request branches did not link or run in isolation before platform components landed, live runtime verification was conducted using **composed standalone build trees**.
 
+> [!NOTE]
+> **Qualification of Exact Provenance**: The exact source composition for both evaluated binaries cannot be reconstructed bit-for-bit from immutable Git repository SHAs alone. Binary 1 relied on uncommitted local workspace patch shims (`patch-32.patch`) applied atop PR #20, while Binary 2 was compiled from a mutable integration branch combining PR #23 with uncommitted/manual cherry-picks of packaging (#14) and CI (#13) while excluding #19. Their exact constituent source composition is therefore marked **unrecovered**, though the base commits, architectural components, execution logs, and artifact SHA-256 hashes are fully documented below.
+
 ### 1. Automated Verification Binary (`build-mingw\raylib_wolf3d.exe`)
 - **Artifact SHA-256**: `ad010d24b5d4d68fd3baf3e29cb189494d4483bae78300df354e0291d002466a` (8,828,903 bytes, RelWithDebInfo).
 - **Base Source Revision**: Git commit `24eab54b918196dd46de00d22d19ee987899ebaf` (PR #20 / WOLF-38 branch `agent/wolf-win-verifier-agy/ad8d3f5e3cbc`).
-- **Applied Local Patches**: WOLF-32 portability patch (`patch-32.patch` from `wolf-38` workspace), providing:
+- **Applied Local Patches (Exact Provenance Unrecovered)**: WOLF-32 portability patch (transient workspace file `patch-32.patch` from the `wolf-38` workspace, uncommitted to git), providing:
   - `ID_MM.C`: memory queries via `GlobalMemoryStatusEx`
   - `port/wl_compat.c`: directory matching via `FindFirstFileA`
   - `port/wl_compat.h`: atomic replacement and `_commit` fsync
   - `tests/sd_integration_test.c`: `_putenv` shims
+  Because `patch-32.patch` was a workspace-local patch file and not committed to git, the exact constituent source composition cannot be independently retrieved or reproduced from Git history alone.
 - **Timer / Threading Implementation in this Binary**:
   - At base commit `24eab54`, `port/wl_timer.c` used the POSIX `pthread_create` and `clock_nanosleep` implementation provided at runtime via MinGW-w64's `libwinpthread-1.dll`.
   - The Win32 multimedia timer / QPC implementation from WOLF-33 (PR #17) was not integrated into this local binary tree; 70 Hz timing precision was achieved via winpthreads high-resolution monotonic sleep.
@@ -38,20 +42,24 @@ Because individual intermediate pull request branches did not link or run in iso
   cmake --build build-mingw
   ```
 - **Evidence / Run Logs**:
-  - Multica issue [WOLF-38](mention://issue/01a128c4-7b33-7744-a4d8-fc4d3c880e05) comment `01a128db-10c7-7429-9e8a-fb5291f2be88`.
-  - Report deliverable `docs/WINDOWS_VERIFICATION.md` and automated runner `tests/windows_e2e_check.py`.
+  - Multica issue [WOLF-38](mention://issue/01a128c4-7b33-7744-a4d8-fc4d3c880e05) report thread `01a128d8-8d3f-7485-a253-af26471350b6`.
+  - Report deliverable [`docs/WINDOWS_VERIFICATION.md`](WINDOWS_VERIFICATION.md) and automated runner [`tests/windows_e2e_check.py`](../tests/windows_e2e_check.py).
 
 ### 2. Interactive User-Session Release Binary (`raylib_wolf3d.exe`)
 - **Artifact SHA-256**: `d120a36506b884cec7fb8db66b1a4ff887aeba57293d588f0cb59218b501149d` (3,026,656 bytes, stripped release binary).
-- **Composed Source Revision**: Built from PR #23's branch (`agent/wolf-win-verifier-agy/f8ffd873c334`), which integrated PR #16 (CMake presets), PR #17 (Win32 QPC timer and APPDATA paths), PR #18 (OPL3 pacing), and packaging scripts from PR #14.
-- **Builder**: Agent `mika-windows` (`dee09883-c03f-4a22-a44e-3047b794aa2f`) in workspace `wolf-39-728f0c2ad7a9`.
+- **Composed Source Composition (Exact Provenance Unrecovered)**:
+  - Built by agent `mika-windows` (`dee09883-c03f-4a22-a44e-3047b794aa2f`) in workspace `wolf-39-728f0c2ad7a9`.
+  - Built from the mutable PR #23 integration branch (`agent/wolf-win-verifier-agy/f8ffd873c334`, reviewed head `88b90e3c7d6a79103a60355aa38ce59c09ce3d54`), which integrated PR #16 (CMake presets), PR #17 (Win32 QPC timer and APPDATA paths), and PR #18 (OPL3 pacing).
+  - Also incorporated packaging scripts from PR #14 and CI/release changes from PR #13.
+  - **Explicitly Excluded**: PR #19 (WOLF-32 non-portable C fixes) conflicted with the branch stack and was **excluded** from the build.
+  - Because changes from #14 and #13 were manually layered onto the mutable PR #23 branch without an immutable commit SHA or recorded patch checksum, the exact source composition remains unrecovered.
 - **Packaging**: Distributed in `raylib_wolf3d-1.0.0-windows-x64-shareware.zip` (SHA-256 `d8021e8f20340e8bf1057e91db361dac3df38298c29ff7265f5ad59323a2fa75`).
 - **Evidence**:
   - Live console session (`WinSta0\Default`, Session 2) execution.
-  - Multica issue [WOLF-39](mention://issue/01a128c4-874c-73ea-85fc-f2ce26673f7a) comment `01a12ac0-748d-749c-8ce5-8c09735cf0d0` and approval comment `01a12abd-27dd-7d02-929a-986e09abd003`.
+  - Multica issue [WOLF-39](mention://issue/01a128c4-874c-73ea-85fc-f2ce26673f7a) comment `01a12ac0-748d-749c-8ce5-8c09735cf0d0` (documenting the PR #23 + #14 + #13 composition and PR #19 exclusion) and approval comment `01a12abd-27dd-7d02-929a-986e09abd003`.
 
 ### 3. Distinction: Composed Runtime vs. Per-Head Review
-Per-head verification of individual pull requests (e.g. PR #16, #17, #18, #19) verified source diff correctness, compiler warning cleanliness, and isolated component compilation. Complete end-to-end game execution, demo replay hashes, and save/load integrity were evaluated exclusively using the composed binaries identified above.
+Per-head verification of individual pull requests (e.g. PR #16, #17, #18, #19) verified source diff correctness, compiler warning cleanliness, and isolated component compilation. Complete end-to-end game execution, demo replay hashes, and save/load integrity were evaluated exclusively using the composed binaries identified above, whose exact source composition is qualified as unrecovered.
 
 ---
 
@@ -76,7 +84,7 @@ All pull requests implementing the Windows port have cleared review and verifica
 
 ## Live Host Verification Results & Scope Qualifications
 
-Automated verification suite `tests/windows_e2e_check.py` was executed directly against `build-mingw\raylib_wolf3d.exe` (`ad010d24`):
+Automated verification suite [`tests/windows_e2e_check.py`](../tests/windows_e2e_check.py) was executed directly against `build-mingw\raylib_wolf3d.exe` (`ad010d24`):
 
 ```powershell
 python tests\windows_e2e_check.py build-mingw\raylib_wolf3d.exe $env:USERPROFILE\wolf3d-data\shareware
@@ -100,7 +108,7 @@ python tests\windows_e2e_check.py build-mingw\raylib_wolf3d.exe $env:USERPROFILE
 - **Unverified on Windows**:
   - Rejection of out-of-bounds scan codes and negative button indices was **not** tested in the Windows E2E harness.
   - In-game modification and reload of user settings was **not** tested in the Windows E2E harness.
-  - Both boundary rejection and reload round-trips were verified on Linux under `tests/persist_check.py` (WOLF-18/WOLF-7) and remain marked unverified natively on Windows.
+  - Both boundary rejection and reload round-trips were verified on Linux under [`tests/persist_check.py`](../tests/persist_check.py) (WOLF-18/WOLF-7) and remain marked unverified natively on Windows.
 
 ---
 
