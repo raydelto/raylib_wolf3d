@@ -40,6 +40,10 @@ endif()
 # a scratch config dir, so the user's CONFIG.WL1 can't change the result
 file(MAKE_DIRECTORY "${WORK}")
 set(ENV{XDG_CONFIG_HOME} "${WORK}")
+if(CMAKE_HOST_APPLE)
+  # macOS keeps CONFIG.WL1 in $HOME/Library/Application Support (WOLF-63).
+  set(ENV{HOME} "${WORK}")
+endif()
 set(ENV{ALSA_CONFIG_PATH} "")
 
 execute_process(
