@@ -198,15 +198,22 @@ if(BUILD_TESTING)
   add_executable(wolf_core_data_test tests/core_data_test.c
     WOLFSRC/ID_MM.C WOLFSRC/ID_PM.C WOLFSRC/ID_CA.C WOLFSRC/WL_SCALE.C port/wl_data.c)
   target_include_directories(wolf_core_data_test PRIVATE port WOLFSRC)
-  target_compile_options(wolf_core_data_test PRIVATE -Wall -Wextra ${WOLF3D_CHAR_FLAG} -fcommon)
+  if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(wolf_core_data_test PRIVATE -Wall -Wextra ${WOLF3D_CHAR_FLAG} -fcommon)
+  endif()
   add_executable(wolf_codec_test tests/codec_test.c port/wl_data.c)
   target_include_directories(wolf_codec_test PRIVATE port)
-  target_compile_options(wolf_codec_test PRIVATE -Wall -Wextra ${WOLF3D_CHAR_FLAG})
+  if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(wolf_codec_test PRIVATE -Wall -Wextra ${WOLF3D_CHAR_FLAG})
+  endif()
   add_executable(wolf_render_test tests/render_test.c WOLFSRC/WL_DRAW.C WOLFSRC/WL_STATE.C
     WOLFSRC/WL_SCALE.C WOLFSRC/WOLFHACK.C WOLFSRC/ID_MM.C port/wl_raycast.c port/wl_data.c port/asm_stubs.c)
   target_include_directories(wolf_render_test PRIVATE port WOLFSRC)
   target_compile_options(wolf_render_test PRIVATE ${WOLF3D_WARNINGS} ${WOLF3D_GAME_FLAGS} -ffunction-sections -fdata-sections)
   target_link_options(wolf_render_test PRIVATE -Wl,--gc-sections)
+  if(WIN32)
+    target_sources(wolf_render_test PRIVATE tests/render_test_win_stubs.c)
+  endif()
   target_link_libraries(wolf_render_test PRIVATE m)
   add_test(NAME core_renderer COMMAND wolf_render_test)
   set(WOLF3D_TEST_DATA "$ENV{HOME}/wolf3d-data/shareware" CACHE PATH "External WL1 data for core tests")
@@ -228,11 +235,14 @@ if(BUILD_TESTING)
     $<TARGET_FILE:raylib_wolf3d> ${WOLF3D_TEST_DATA} ${CMAKE_CURRENT_BINARY_DIR}/persist_check)
   set_tests_properties(persist_check PROPERTIES SKIP_REGULAR_EXPRESSION "SKIPPED" TIMEOUT 600)
 
-  # The persistence streams and paths on their own: no data, no display (WOLF-18).
-  add_executable(wolf_persist_test tests/persist_test.c port/wl_persist.c)
-  target_include_directories(wolf_persist_test PRIVATE port WOLFSRC)
-  target_compile_options(wolf_persist_test PRIVATE ${WOLF3D_WARNINGS} ${WOLF3D_GAME_FLAGS})
-  add_test(NAME core_persist COMMAND wolf_persist_test)
+  # POSIX-only test (fork, mkdtemp); coverage stays on Linux CI.
+  if(NOT WIN32)
+    # The persistence streams and paths on their own: no data, no display (WOLF-18).
+    add_executable(wolf_persist_test tests/persist_test.c port/wl_persist.c)
+    target_include_directories(wolf_persist_test PRIVATE port WOLFSRC)
+    target_compile_options(wolf_persist_test PRIVATE ${WOLF3D_WARNINGS} ${WOLF3D_GAME_FLAGS})
+    add_test(NAME core_persist COMMAND wolf_persist_test)
+  endif()
 
   # ---------------------------------------------------------------------------
   # Tests (ctest): the raylib keyboard translation against a fake raylib, no display needed.

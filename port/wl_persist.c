@@ -7,7 +7,14 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#ifdef _WIN32
+#include <direct.h>
+/* MinGW's <direct.h> renames diskfree_t, which the Borland shim declares. */
+#undef diskfree_t
+#define mkdir(path, mode) _mkdir(path)
+#else
 #include <unistd.h>
+#endif
 
 #include "WL_DEF.H"
 #include "wl_persist.h"
