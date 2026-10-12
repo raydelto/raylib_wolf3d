@@ -1,0 +1,7 @@
+{
+  "name": "raylib-wolf3d",
+  "version-string": "0.0.0",
+  "dependencies": [
+    "raylib"
+  ]
+}
