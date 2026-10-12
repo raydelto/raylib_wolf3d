@@ -125,4 +125,7 @@ jobs:
           $exe = (Get-ChildItem -Recurse build -Filter raylib_wolf3d.exe | Select-Object -First 1).FullName
           & $exe -data (Join-Path $env:RUNNER_TEMP 'nodata')
           Write-Host "exit code: $LASTEXITCODE"
+          # End with an explicit exit: some pwsh versions exit 1 when a -command
+          # script ends on a false-condition if, even after a passing check.
           if ($LASTEXITCODE -ne 2) { exit 1 }
+          exit 0
